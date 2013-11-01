@@ -2509,6 +2509,8 @@
 		IOMUX_PAD(0x05FC, 0x022C, 4, 0x0000, 0, NO_PAD_CTRL)
 #define MX6DL_PAD_GPIO_4__GPIO_1_4                                             \
 		IOMUX_PAD(0x05FC, 0x022C, 5, 0x0000, 0, NO_PAD_CTRL)
+#define MX6DL_PAD_GPIO_4__GPIO_1_4_WITH_PU                                     \
+		IOMUX_PAD(0x05FC, 0x022C, 5, 0x0000, 0, MX6DL_USDHC_PAD_CTRL)
 #define MX6DL_PAD_GPIO_4__USDHC2_CD                                            \
 		IOMUX_PAD(0x05FC, 0x022C, 6, 0x0000, 0, MX6DL_USDHC_PAD_CTRL)
 #define MX6DL_PAD_GPIO_4__OCOTP_CTRL_WRAPPER_FUSE_LATCHED                      \

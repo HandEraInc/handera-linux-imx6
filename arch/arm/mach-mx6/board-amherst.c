@@ -131,13 +131,19 @@ extern char *pu_reg_id;
 extern int epdc_enabled;
 
 /* SDHC Setup */
+// micro-SD card
 static const struct esdhc_platform_data amherst_sd2_data __initconst = {
 	.cd_gpio = AMHERST_SD2_CD,
 	.wp_gpio = AMHERST_SD2_WP,
 	.keep_power_at_suspend = 1,
-	.cd_type = ESDHC_CD_CONTROLLER,
+	.support_18v = 0,
+	.support_8bit = 0,
+	.delay_line = 0,
+	.cd_type = ESDHC_CD_GPIO,
+	.cd_inverted = 1,
 };
 
+// SDIO WLAN
 static const struct esdhc_platform_data amherst_sd3_data __initconst = {
 	.always_present = 1,
 	.keep_power_at_suspend = 1,
@@ -147,10 +153,13 @@ static const struct esdhc_platform_data amherst_sd3_data __initconst = {
 	.cd_type = ESDHC_CD_PERMANENT,
 };
 
+// eMMC
 static const struct esdhc_platform_data amherst_sd4_data __initconst = {
 	.always_present = 1,
 	.keep_power_at_suspend = 1,
+	.support_18v = 0,
 	.support_8bit = 1,
+	.delay_line = 0,
 	.cd_type = ESDHC_CD_PERMANENT,
 };
 
@@ -158,14 +167,12 @@ static inline void imx6_init_sdhc(void)
 {
 	int ret = 0;
 
-	IOMUX_PAD(0x05FC, 0x022C, 5, 0x0000, 0, MX6DL_USDHC_PAD_CTRL);
-
 	// Move sd4 to first because sd4 connect to emmc.
 	// Mfgtools want emmc is mmcblk0 and other sd cards mmcblkX.
 	// ToDo: Add/Edit udev rule to always make sd4 mmcblk0
 	imx6q_add_sdhci_usdhc_imx(3, &amherst_sd4_data);
-	imx6q_add_sdhci_usdhc_imx(2, &amherst_sd3_data);
 	imx6q_add_sdhci_usdhc_imx(1, &amherst_sd2_data);
+	imx6q_add_sdhci_usdhc_imx(2, &amherst_sd3_data);
 
 	// Turn on power to SD2
 	ret = gpio_request(AMHERST_SD2_PWR, "sdhc2-pwr");
@@ -216,6 +223,8 @@ static int amherst_fec_phy_init(struct phy_device *phydev)
 static struct fec_platform_data fec_data __initdata = {
 	.init = amherst_fec_phy_init,
 	.phy = PHY_INTERFACE_MODE_RMII,
+	.gpio_reset = SOLOMODULE_ENET_RSTF,
+	.phy_reset_usec = 750,		// 500 usec min reset pulse for SMSC LAN8720A
 };
 
 /* SPI Setup */
@@ -450,31 +459,31 @@ static void __init amherst_init_i2c(void)
 }
 
 /* USB Setup */
-/*static void amherst_usbotg_vbus(bool on)
+static void amherst_usbotg_vbus(bool on)
 {
 	if (on)
 		gpio_set_value(AMHERST_USB_OTG_PWR, 1);
 	else
 		gpio_set_value(AMHERST_USB_OTG_PWR, 0);
-}*/
+}
 
 static void __init amherst_init_usb(void)
 {
 	int ret = 0;
 
 	imx_otg_base = MX6_IO_ADDRESS(MX6Q_USB_OTG_BASE_ADDR);
-	/* disable external charger detect,
-	 * or it will affect signal quality at dp .
-	 */
-	/*ret = gpio_request(AMHERST_USB_OTG_PWR, "usb-pwr");
+	ret = gpio_request(AMHERST_USB_OTG_PWR, "usb-pwr");
 	if (ret) {
 		pr_err("failed to get GPIO AMHERST_USB_OTG_PWR: %d\n",
 			ret);
 		return;
 	}
-	gpio_direction_output(AMHERST_USB_OTG_PWR, 0);*/
+	gpio_direction_output(AMHERST_USB_OTG_PWR, 0);
 
-	/* keep USB host1 VBUS always on */
+	// Note: SMSC USB2512BI Hub datasheet says VBUS_DET input signal must be strapped 
+	// to VCC, so set the connected CPU pin to input (ie. high-impedence).
+	
+    /* keep USB host1 VBUS always on */
 	ret = gpio_request(AMHERST_USB_H1_PWR, "usb-h1-pwr");
 	if (ret) {
 		pr_err("failed to get GPIO AMHERST_USB_H1_PWR: %d\n",
@@ -482,11 +491,10 @@ static void __init amherst_init_usb(void)
 		return;
 	}
 	gpio_direction_output(AMHERST_USB_H1_PWR, 1);
+    mx6_set_otghost_vbus_func(amherst_usbotg_vbus);
 
 	// Set bit in GPR to set USB OTG ID pin to GPIO_1
 	mxc_iomux_set_gpr_register(1, 13, 1, 1);
-
-	//mx6_set_otghost_vbus_func(amherst_usbotg_vbus);
 }
 
 /* Display Setup */
@@ -622,7 +630,7 @@ static struct fsl_mxc_capture_platform_data capture_data[] = {
 };
 
 
-/*static void amherst_suspend_enter(void)
+static void amherst_suspend_enter(void)
 {
 }
 
@@ -634,7 +642,7 @@ static const struct pm_platform_data amherst_pm_data __initconst = {
 	.name = "imx_pm",
 	.suspend_enter = amherst_suspend_enter,
 	.suspend_exit = amherst_suspend_exit,
-};*/
+};
 
 static struct regulator_consumer_supply amherst_vmmc_consumers[] = {
 	REGULATOR_SUPPLY("vmmc", "sdhci-esdhc-imx.1"),
@@ -803,7 +811,13 @@ static void __init mx6_amherst_board_init(void)
 	 *              1 - GPIO_16 get reference clk from internal clk,
 	 *		    also sent out to external PHY
 	 */
-	 mxc_iomux_set_gpr_register(1, 21, 1, 1);
+	mxc_iomux_set_gpr_register(1, 21, 1, 1);
+
+	// also setup PHY reset line
+	if (gpio_request(AMHERST_ENET_RSTF, "enet-rstf") == 0)
+		gpio_direction_output(SOLOMODULE_ENET_RSTF, 1);
+	else
+		pr_err("failed to get GPIO SOLOMODULE_ENET_RSTF: %d\n", ret);
 #endif
 
 	gp_reg_id = amherst_dvfscore_data.reg_id;
@@ -907,7 +921,7 @@ static void __init mx6_amherst_board_init(void)
 	imx6q_add_pcie(&amherst_pcie_data);
 
 	/* Clocks */
-	/*clko2 = clk_get(NULL, "clko2_clk");
+	clko2 = clk_get(NULL, "clko2_clk");
 	if (IS_ERR(clko2))
 		pr_err("can't get CLKO2 clock.\n");
 
@@ -918,13 +932,13 @@ static void __init mx6_amherst_board_init(void)
 	}
 	rate = clk_round_rate(clko2, 24000000);
 	clk_set_rate(clko2, rate);
-	clk_enable(clko2);*/
+	clk_enable(clko2);
 
 	/* Camera and audio use osc clock */
-	/*clko = clk_get(NULL, "clko_clk");
+	clko = clk_get(NULL, "clko_clk");
 	if (!IS_ERR(clko))
-		clk_set_parent(clko, clko2);*/
-
+		clk_set_parent(clko, clko2);
+	
 	imx6q_add_busfreq();
 
 	imx6q_add_perfmon(0);

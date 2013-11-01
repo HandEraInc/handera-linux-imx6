@@ -1906,6 +1906,14 @@ fec_probe(struct platform_device *pdev)
 		goto failed_clk;
 	}
 	clk_enable(fep->clk);
+	
+	// if PHY reset provided, reset it now that FEC clock is running
+	if (pdata->gpio_reset) {
+		gpio_direction_output(pdata->gpio_reset, 0);
+		udelay(pdata->phy_reset_usec);		
+		gpio_direction_output(pdata->gpio_reset, 1);
+		mdelay(10);
+	}
 
 	ret = fec_enet_init(ndev);
 	if (ret)
