@@ -119,10 +119,6 @@
 #define AMHERST_LED_GRN	IMX_GPIO_NR(4, 29)
 
 
-static struct clk *clko;
-static int mma8451_position = 1;
-static int mag3110_position = 2;
-static int max11801_mode = 1;
 static int caam_enabled;
 
 extern char *gp_reg_id;
@@ -223,7 +219,7 @@ static int amherst_fec_phy_init(struct phy_device *phydev)
 static struct fec_platform_data fec_data __initdata = {
 	.init = amherst_fec_phy_init,
 	.phy = PHY_INTERFACE_MODE_RMII,
-	.gpio_reset = SOLOMODULE_ENET_RSTF,
+	.gpio_reset = AMHERST_ENET_RSTF,
 	.phy_reset_usec = 750,		// 500 usec min reset pulse for SMSC LAN8720A
 };
 
@@ -513,6 +509,8 @@ static struct mipi_dsi_platform_data mipi_dsi_pdata = {
 	.lcd_panel	= "TRULY-WVGA",
 };
 
+// HandEra: based on the SabreSD BSP, it looks like the third and fourth entries
+// are only used for the Quad version of the processor (verify and delete if true)
 static struct ipuv3_fb_platform_data amherst_fb_data[] = {
 	{ //fb0
 	.disp_dev = "ldb",
@@ -796,7 +794,6 @@ static const struct imx_pcie_platform_data amherst_pcie_data __initconst = {
 static void __init mx6_amherst_board_init(void)
 {
 	int i;
-	int ret;
 	struct clk *clko, *clko2;
 	struct clk *new_parent;
 	int rate;
@@ -815,15 +812,13 @@ static void __init mx6_amherst_board_init(void)
 
 	// also setup PHY reset line
 	if (gpio_request(AMHERST_ENET_RSTF, "enet-rstf") == 0)
-		gpio_direction_output(SOLOMODULE_ENET_RSTF, 1);
+		gpio_direction_output(AMHERST_ENET_RSTF, 1);
 	else
-		pr_err("failed to get GPIO SOLOMODULE_ENET_RSTF: %d\n", ret);
+		pr_err("failed to get GPIO AMHERST_ENET_RSTF\n");
 #endif
 
 	gp_reg_id = amherst_dvfscore_data.reg_id;
 	soc_reg_id = amherst_dvfscore_data.soc_id;
-
-	imx6q_add_mxc_hdmi_core(&hdmi_core_data);
 
 	/* UARTs */
 	amherst_init_uart();
@@ -835,15 +830,15 @@ static void __init mx6_amherst_board_init(void)
 	 * register 1 IPU device and up to 2 displays for
 	 * MX6DL/Solo
 	 */
-	/*if (cpu_is_mx6dl()) {
+	if (cpu_is_mx6dl()) {
 		ldb_data.ipu_id = 0;
 		ldb_data.sec_ipu_id = 0;
-	}*/
+	}
 
 	/* MIPI Display */
-	/*imx6q_add_ipuv3(0, &ipu_data[0]);
-	imx6q_add_ipuv3(1, &ipu_data[1]);
-	for (i = 0; i < ARRAY_SIZE(amherst_fb_data); i++)
+	imx6q_add_mxc_hdmi_core(&hdmi_core_data);
+	imx6q_add_ipuv3(0, &ipu_data[0]);
+	for (i = 0; i < 2 && i < ARRAY_SIZE(amherst_fb_data); i++)
 		imx6q_add_ipuv3fb(i, &amherst_fb_data[i]);
 
 	imx6q_add_vdoa();
@@ -856,8 +851,9 @@ static void __init mx6_amherst_board_init(void)
 	imx6q_add_mipi_csi2(&mipi_csi2_pdata);
 	imx6q_add_imx_snvs_rtc();
 
+	/* Crypto engine */
 	if (1 == caam_enabled)
-		imx6q_add_imx_caam();*/
+		imx6q_add_imx_caam();
 
 	/* LEDs */
 	imx6q_add_device_gpio_leds();
@@ -869,10 +865,7 @@ static void __init mx6_amherst_board_init(void)
 	spi_device_init();
 
 	/* HDMI */
-	//imx6q_add_mxc_hdmi_core(&hdmi_core_data);
 	imx6q_add_mxc_hdmi(&hdmi_data);
-	imx6q_add_hdmi_soc();
-	imx6q_add_hdmi_soc_dai();
 
 	/* Thermal */
 	imx6q_add_anatop_thermal_imx(1, &amherst_anatop_thermal_data);
@@ -881,7 +874,7 @@ static void __init mx6_amherst_board_init(void)
 	imx6_init_fec(fec_data);
 
 	/* Suspend Power Management */
-	//imx6q_add_pm_imx(0, &amherst_pm_data);
+	imx6q_add_pm_imx(0, &amherst_pm_data);
 
 	/* SDHC */
 	imx6_init_sdhc();
@@ -900,6 +893,10 @@ static void __init mx6_amherst_board_init(void)
 	imx_asrc_data.asrc_core_clk = clk_get(NULL, "asrc_clk");
 	imx_asrc_data.asrc_audio_clk = clk_get(NULL, "asrc_serial_clk");
 	imx6q_add_asrc(&imx_asrc_data);
+
+	/* HDMI audio */
+	imx6q_add_hdmi_soc();
+	imx6q_add_hdmi_soc_dai();
 
 	/* PWM */
 	imx6q_add_mxc_pwm(0);
