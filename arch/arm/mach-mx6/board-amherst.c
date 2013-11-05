@@ -219,6 +219,7 @@ static int amherst_fec_phy_init(struct phy_device *phydev)
 static struct fec_platform_data fec_data __initdata = {
 	.init = amherst_fec_phy_init,
 	.phy = PHY_INTERFACE_MODE_RMII,
+	.gpio_irq = -1,
 	.gpio_reset = AMHERST_ENET_RSTF,
 	.phy_reset_usec = 750,		// 500 usec min reset pulse for SMSC LAN8720A
 };
@@ -944,7 +945,7 @@ static void __init mx6_amherst_board_init(void)
 }
 
 extern void __iomem *twd_base;
-static void __init mx6_sabresd_timer_init(void)
+static void __init mx6_amherst_timer_init(void)
 {
 	struct clk *uart_clk;
 #ifdef CONFIG_LOCAL_TIMERS
@@ -957,11 +958,11 @@ static void __init mx6_sabresd_timer_init(void)
 	early_console_setup(UART1_BASE_ADDR, uart_clk);
 }
 
-static struct sys_timer mx6_sabresd_timer = {
-	.init   = mx6_sabresd_timer_init,
+static struct sys_timer mx6_amherst_timer = {
+	.init   = mx6_amherst_timer_init,
 };
 
-static void __init mx6q_sabresd_reserve(void)
+static void __init mx6q_amherst_reserve(void)
 {
 #if defined(CONFIG_MXC_GPU_VIV) || defined(CONFIG_MXC_GPU_VIV_MODULE)
 	phys_addr_t phys;
@@ -985,6 +986,6 @@ MACHINE_START(AMHERST, "HandEra i.MX6 Amherst Board")
 	.map_io = mx6_map_io,
 	.init_irq = mx6_init_irq,
 	.init_machine = mx6_amherst_board_init,
-	.timer = &mx6_sabresd_timer,
-	.reserve = mx6q_sabresd_reserve,
+	.timer = &mx6_amherst_timer,
+	.reserve = mx6q_amherst_reserve,
 MACHINE_END
