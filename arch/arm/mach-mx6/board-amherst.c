@@ -628,6 +628,14 @@ static struct fsl_mxc_capture_platform_data capture_data[] = {
 	},
 };
 
+struct imx_vout_mem {
+	resource_size_t res_mbase;
+	resource_size_t res_msize;
+};
+
+static struct imx_vout_mem vout_mem __initdata = {
+	.res_msize = SZ_128M,
+};
 
 static void amherst_suspend_enter(void)
 {
@@ -798,6 +806,7 @@ static void __init mx6_amherst_board_init(void)
 	struct clk *clko, *clko2;
 	struct clk *new_parent;
 	int rate;
+	struct platform_device *voutdev;
 
 	mxc_iomux_v3_setup_multiple_pads(amherst_pads,
 		ARRAY_SIZE(amherst_pads));
@@ -847,6 +856,16 @@ static void __init mx6_amherst_board_init(void)
 	imx6q_add_lcdif(&lcdif_data);
 	imx6q_add_ldb(&ldb_data);
 	imx6q_add_v4l2_output(0);
+	voutdev = imx6q_add_v4l2_output(0);
+	if (vout_mem.res_msize && voutdev) {
+		dma_declare_coherent_memory(&voutdev->dev,
+					    vout_mem.res_mbase,
+					    vout_mem.res_mbase,
+					    vout_mem.res_msize,
+					    (DMA_MEMORY_MAP |
+					     DMA_MEMORY_EXCLUSIVE));
+	}
+
 	imx6q_add_v4l2_capture(0, &capture_data[0]);
 	imx6q_add_v4l2_capture(1, &capture_data[1]);
 	imx6q_add_mipi_csi2(&mipi_csi2_pdata);
