@@ -855,7 +855,7 @@ static void __init mx6_amherst_board_init(void)
 	imx6q_add_mipi_dsi(&mipi_dsi_pdata);
 	imx6q_add_lcdif(&lcdif_data);
 	imx6q_add_ldb(&ldb_data);
-	imx6q_add_v4l2_output(0);
+
 	voutdev = imx6q_add_v4l2_output(0);
 	if (vout_mem.res_msize && voutdev) {
 		dma_declare_coherent_memory(&voutdev->dev,
@@ -993,6 +993,13 @@ static void __init mx6q_amherst_reserve(void)
 		imx6q_gpu_pdata.reserved_mem_base = phys;
 	}
 #endif
+
+	if (vout_mem.res_msize) {
+		phys = memblock_alloc_base(vout_mem.res_msize,
+					   SZ_4K, SZ_1G);
+		memblock_remove(phys, vout_mem.res_msize);
+		vout_mem.res_mbase = phys;
+	}
 }
 
 /*
