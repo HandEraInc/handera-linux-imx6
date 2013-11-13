@@ -504,37 +504,17 @@ static struct imx_asrc_platform_data imx_asrc_data = {
 	.clk_map_ver = 2,
 };
 
-static struct mipi_dsi_platform_data mipi_dsi_pdata = {
-	.ipu_id		= 0,
-	.disp_id	= 1,
-	.lcd_panel	= "TRULY-WVGA",
-};
-
-// HandEra: based on the SabreSD BSP, it looks like the third and fourth entries
-// are only used for the Quad version of the processor (verify and delete if true)
 static struct ipuv3_fb_platform_data amherst_fb_data[] = {
-	{ //fb0
+	{/*fb0*/
+	.disp_dev = "hdmi",
+	.interface_pix_fmt = IPU_PIX_FMT_RGB24,
+	.mode_str = "1920x1080M@60",
+	.default_bpp = 32,
+	.int_clk = false,
+	}, { 
 	.disp_dev = "ldb",
 	.interface_pix_fmt = IPU_PIX_FMT_RGB666,
 	.mode_str = "LDB-XGA",
-	.default_bpp = 16,
-	.int_clk = false,
-	}, {
-	.disp_dev = "lcd",
-	.interface_pix_fmt = IPU_PIX_FMT_RGB565,
-	.mode_str = "CLAA-WVGA",
-	.default_bpp = 16,
-	.int_clk = false,
-	}, {
-	.disp_dev = "ldb",
-	.interface_pix_fmt = IPU_PIX_FMT_RGB666,
-	.mode_str = "LDB-SVGA",
-	.default_bpp = 16,
-	.int_clk = false,
-	}, {
-	.disp_dev = "ldb",
-	.interface_pix_fmt = IPU_PIX_FMT_RGB666,
-	.mode_str = "LDB-VGA",
 	.default_bpp = 16,
 	.int_clk = false,
 	},
@@ -545,6 +525,7 @@ static void hdmi_init(int ipu_id, int disp_id)
 {
 	int hdmi_mux_setting;
 
+	printk("hdmi_init(ipu=%d, disp=%d)\n", ipu_id, disp_id);
 	if ((ipu_id > 1) || (ipu_id < 0)) {
 		pr_err("Invalid IPU select for HDMI: %d. Set to 0\n", ipu_id);
 		ipu_id = 0;
@@ -574,12 +555,16 @@ static void hdmi_enable_ddc_pin(void)
 
 static void hdmi_disable_ddc_pin(void)
 {
+	mxc_iomux_v3_setup_multiple_pads(amherst_i2c2_pads,
+			ARRAY_SIZE(amherst_i2c2_pads));
 }
 
 static struct fsl_mxc_hdmi_platform_data hdmi_data = {
 	.init = hdmi_init,
 	.enable_pins = hdmi_enable_ddc_pin,
 	.disable_pins = hdmi_disable_ddc_pin,
+	.phy_reg_vlev = 0x0294,
+	.phy_reg_cksymtx = 0x800d,
 };
 
 static struct fsl_mxc_hdmi_core_platform_data hdmi_core_data = {
@@ -587,18 +572,12 @@ static struct fsl_mxc_hdmi_core_platform_data hdmi_core_data = {
 	.disp_id = 0,
 };
 
-static struct fsl_mxc_lcd_platform_data lcdif_data = {
-	.ipu_id = 0,
-	.disp_id = 0,
-	.default_ifmt = IPU_PIX_FMT_RGB565,
-};
-
 static struct fsl_mxc_ldb_platform_data ldb_data = {
-	.ipu_id = 1,
+	.ipu_id = 0,
 	.disp_id = 1,
 	.ext_ref = 1,
-	.mode = LDB_SEP1,
-	.sec_ipu_id = 1,
+	.mode = LDB_SEP0,
+	.sec_ipu_id = 0,
 	.sec_disp_id = 0,
 };
 
@@ -833,28 +812,18 @@ static void __init mx6_amherst_board_init(void)
 	/* UARTs */
 	amherst_init_uart();
 
+	/* IPU and Displays */
 	/*
-	 * MX6DL/Solo only supports single IPU
-	 * The following codes are used to change ipu id
-	 * and display id information for MX6DL/Solo. Then
+	 * Note: MX6DL/Solo only supports single IPU. 
 	 * register 1 IPU device and up to 2 displays for
 	 * MX6DL/Solo
 	 */
-	if (cpu_is_mx6dl()) {
-		ldb_data.ipu_id = 0;
-		ldb_data.sec_ipu_id = 0;
-	}
-
-	/* MIPI Display */
 	imx6q_add_mxc_hdmi_core(&hdmi_core_data);
 	imx6q_add_ipuv3(0, &ipu_data[0]);
-	for (i = 0; i < 2 && i < ARRAY_SIZE(amherst_fb_data); i++)
+	for (i = 0; i < ARRAY_SIZE(amherst_fb_data); i++)
 		imx6q_add_ipuv3fb(i, &amherst_fb_data[i]);
-
 	imx6q_add_vdoa();
-	imx6q_add_mipi_dsi(&mipi_dsi_pdata);
-	imx6q_add_lcdif(&lcdif_data);
-	imx6q_add_ldb(&ldb_data);
+	//imx6q_add_ldb(&ldb_data);
 
 	voutdev = imx6q_add_v4l2_output(0);
 	if (vout_mem.res_msize && voutdev) {
@@ -884,9 +853,6 @@ static void __init mx6_amherst_board_init(void)
 	/* SPI */
 	spi_device_init();
 
-	/* HDMI */
-	imx6q_add_mxc_hdmi(&hdmi_data);
-
 	/* Thermal */
 	imx6q_add_anatop_thermal_imx(1, &amherst_anatop_thermal_data);
 
@@ -914,7 +880,8 @@ static void __init mx6_amherst_board_init(void)
 	imx_asrc_data.asrc_audio_clk = clk_get(NULL, "asrc_serial_clk");
 	imx6q_add_asrc(&imx_asrc_data);
 
-	/* HDMI audio */
+	/* HDMI */
+	imx6q_add_mxc_hdmi(&hdmi_data);
 	imx6q_add_hdmi_soc();
 	imx6q_add_hdmi_soc_dai();
 

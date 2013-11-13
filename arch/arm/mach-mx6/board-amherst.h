@@ -189,4 +189,10 @@ static iomux_v3_cfg_t amherst_hdmi_ddc_pads[] = {
 	MX6DL_PAD_EIM_D16__HDMI_TX_DDC_SDA, /* HDMI DDC SDA */
 };
 
+static iomux_v3_cfg_t amherst_i2c2_pads[] = {
+	MX6DL_PAD_EIM_EB2__I2C2_SCL,	/* I2C2 SCL */
+	MX6DL_PAD_EIM_D16__I2C2_SDA,	/* I2C2 SDA */
+};
+
+
 #endif
