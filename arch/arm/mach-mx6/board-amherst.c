@@ -136,7 +136,7 @@ static const struct esdhc_platform_data amherst_sd2_data __initconst = {
 	.support_8bit = 0,
 	.delay_line = 0,
 	.cd_type = ESDHC_CD_GPIO,
-	.cd_inverted = 1,
+	.cd_inverted = 0,
 };
 
 // SDIO WLAN
@@ -505,17 +505,18 @@ static struct imx_asrc_platform_data imx_asrc_data = {
 };
 
 static struct ipuv3_fb_platform_data amherst_fb_data[] = {
-	{/*fb0*/
+	{ 
+	.disp_dev = "ldb",
+	.interface_pix_fmt = IPU_PIX_FMT_RGB666,
+	.mode_str = "LDB-1080P75",
+	.default_bpp = 32,
+	.int_clk = false,
+	},
+	{
 	.disp_dev = "hdmi",
 	.interface_pix_fmt = IPU_PIX_FMT_RGB24,
 	.mode_str = "1920x1080M@60",
 	.default_bpp = 32,
-	.int_clk = false,
-	}, { 
-	.disp_dev = "ldb",
-	.interface_pix_fmt = IPU_PIX_FMT_RGB666,
-	.mode_str = "LDB-XGA",
-	.default_bpp = 16,
 	.int_clk = false,
 	},
 };
@@ -576,21 +577,15 @@ static struct fsl_mxc_ldb_platform_data ldb_data = {
 	.ipu_id = 0,
 	.disp_id = 1,
 	.ext_ref = 1,
-	.mode = LDB_SEP0,
+	.mode = LDB_SPL_DI1,
 	.sec_ipu_id = 0,
 	.sec_disp_id = 0,
 };
 
-static struct imx_ipuv3_platform_data ipu_data[] = {
-	{
+static struct imx_ipuv3_platform_data ipu_data = {
 	.rev = 4,
 	.csi_clk[0] = "clko_clk",
 	.bypass_reset = false,
-	}, {
-	.rev = 4,
-	.csi_clk[0] = "clko_clk",
-	.bypass_reset = false,
-	},
 };
 
 static struct fsl_mxc_capture_platform_data capture_data[] = {
@@ -819,11 +814,11 @@ static void __init mx6_amherst_board_init(void)
 	 * MX6DL/Solo
 	 */
 	imx6q_add_mxc_hdmi_core(&hdmi_core_data);
-	imx6q_add_ipuv3(0, &ipu_data[0]);
+	imx6q_add_ipuv3(0, &ipu_data);
 	for (i = 0; i < ARRAY_SIZE(amherst_fb_data); i++)
 		imx6q_add_ipuv3fb(i, &amherst_fb_data[i]);
 	imx6q_add_vdoa();
-	//imx6q_add_ldb(&ldb_data);
+	imx6q_add_ldb(&ldb_data);
 
 	voutdev = imx6q_add_v4l2_output(0);
 	if (vout_mem.res_msize && voutdev) {
