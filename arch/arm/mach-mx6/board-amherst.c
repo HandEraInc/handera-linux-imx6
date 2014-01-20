@@ -178,6 +178,17 @@ static inline void imx6_init_sdhc(void)
 		return;
 	}
 	gpio_direction_output(AMHERST_SD2_PWR, 1);
+
+	// Configure extra WLAN signals
+	gpio_request(AMHERST_WIFI_RSTF, "wifi-rstf");
+	gpio_direction_output(AMHERST_WIFI_RSTF, 1);
+	gpio_request(AMHERST_WIFI_PWR, "wifi-pwr");
+	gpio_direction_output(AMHERST_WIFI_PWR, 1);
+
+	// Reset WLAN to prevent firmware load failures
+	gpio_set_value(AMHERST_WIFI_RSTF, 0);
+	mdelay(10);
+	gpio_set_value(AMHERST_WIFI_RSTF, 1);
 }
 
 /* Thermal Setup */
