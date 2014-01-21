@@ -619,7 +619,7 @@ struct imx_vout_mem {
 };
 
 static struct imx_vout_mem vout_mem __initdata = {
-	.res_msize = SZ_128M,
+	.res_msize = SZ_64M,
 };
 
 static void amherst_suspend_enter(void)
