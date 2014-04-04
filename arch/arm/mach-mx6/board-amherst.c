@@ -961,7 +961,7 @@ static void __init mx6q_amherst_reserve(void)
 
 	if (imx6q_gpu_pdata.reserved_mem_size) {
 		phys = memblock_alloc_base(imx6q_gpu_pdata.reserved_mem_size,
-					   SZ_4K, SZ_1G);
+					   SZ_4K, SZ_512M);
 		memblock_remove(phys, imx6q_gpu_pdata.reserved_mem_size);
 		imx6q_gpu_pdata.reserved_mem_base = phys;
 	}
@@ -969,7 +969,7 @@ static void __init mx6q_amherst_reserve(void)
 
 	if (vout_mem.res_msize) {
 		phys = memblock_alloc_base(vout_mem.res_msize,
-					   SZ_4K, SZ_1G);
+					   SZ_4K, SZ_512M);
 		memblock_remove(phys, vout_mem.res_msize);
 		vout_mem.res_mbase = phys;
 	}
