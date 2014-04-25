@@ -76,6 +76,7 @@
 #include "crm_regs.h"
 #include "cpu_op-mx6.h"
 #include "board-amherst.h"
+#include "board-amherst_quad.h"
 
 /* SPI Chip Selects */
 #define AMHERST_SPI2_SS2	IMX_GPIO_NR(3, 24)
@@ -499,7 +500,7 @@ static void __init amherst_init_usb(void)
 		return;
 	}
 	gpio_direction_output(AMHERST_USB_H1_PWR, 1);
-    mx6_set_otghost_vbus_func(amherst_usbotg_vbus);
+    	mx6_set_otghost_vbus_func(amherst_usbotg_vbus);
 
 	// Set bit in GPR to set USB OTG ID pin to GPIO_1
 	mxc_iomux_set_gpr_register(1, 13, 1, 1);
@@ -561,14 +562,30 @@ static void hdmi_init(int ipu_id, int disp_id)
 
 static void hdmi_enable_ddc_pin(void)
 {
-	mxc_iomux_v3_setup_multiple_pads(amherst_hdmi_ddc_pads,
-		ARRAY_SIZE(amherst_hdmi_ddc_pads));
+	if (cpu_is_mx6q())
+	{
+		mxc_iomux_v3_setup_multiple_pads(amherst_quad_hdmi_ddc_pads,
+			ARRAY_SIZE(amherst_quad_hdmi_ddc_pads));
+	}
+	else if (cpu_is_mx6dl())
+	{
+		mxc_iomux_v3_setup_multiple_pads(amherst_hdmi_ddc_pads,
+			ARRAY_SIZE(amherst_hdmi_ddc_pads));
+	}
 }
 
 static void hdmi_disable_ddc_pin(void)
 {
-	mxc_iomux_v3_setup_multiple_pads(amherst_i2c2_pads,
-			ARRAY_SIZE(amherst_i2c2_pads));
+	if (cpu_is_mx6q())
+	{
+		mxc_iomux_v3_setup_multiple_pads(amherst_quad_i2c2_pads,
+				ARRAY_SIZE(amherst_quad_i2c2_pads));
+	}
+	else if (cpu_is_mx6dl())
+	{
+		mxc_iomux_v3_setup_multiple_pads(amherst_i2c2_pads,
+				ARRAY_SIZE(amherst_i2c2_pads));
+	}
 }
 
 static struct fsl_mxc_hdmi_platform_data hdmi_data = {
@@ -593,10 +610,16 @@ static struct fsl_mxc_ldb_platform_data ldb_data = {
 	.sec_disp_id = 0,
 };
 
-static struct imx_ipuv3_platform_data ipu_data = {
+static struct imx_ipuv3_platform_data ipu_data[] = {
+	{
 	.rev = 4,
 	.csi_clk[0] = "clko_clk",
 	.bypass_reset = false,
+	}, {
+	.rev = 4,
+	.csi_clk[0] = "clko_clk",
+	.bypass_reset = false,
+	},
 };
 
 static struct fsl_mxc_capture_platform_data capture_data[] = {
@@ -793,8 +816,16 @@ static void __init mx6_amherst_board_init(void)
 	int rate;
 	struct platform_device *voutdev;
 
-	mxc_iomux_v3_setup_multiple_pads(amherst_pads,
-		ARRAY_SIZE(amherst_pads));
+	if (cpu_is_mx6q())
+	{
+		mxc_iomux_v3_setup_multiple_pads(amherst_quad_pads,
+			ARRAY_SIZE(amherst_quad_pads));
+	}
+	else if (cpu_is_mx6dl())
+	{
+		mxc_iomux_v3_setup_multiple_pads(amherst_pads,
+			ARRAY_SIZE(amherst_pads));
+	}
 
 #ifdef CONFIG_FEC_1588
 	/* Set GPIO_16 input for IEEE-1588 ts_clk and RMII reference clock
@@ -825,9 +856,13 @@ static void __init mx6_amherst_board_init(void)
 	 * MX6DL/Solo
 	 */
 	imx6q_add_mxc_hdmi_core(&hdmi_core_data);
-	imx6q_add_ipuv3(0, &ipu_data);
+	imx6q_add_ipuv3(0, &ipu_data[0]);
+	if (cpu_is_mx6q()) {
+		imx6q_add_ipuv3(1, &ipu_data[1]);
+	}
 	for (i = 0; i < ARRAY_SIZE(amherst_fb_data); i++)
 		imx6q_add_ipuv3fb(i, &amherst_fb_data[i]);
+
 	imx6q_add_vdoa();
 	imx6q_add_ldb(&ldb_data);
 
@@ -960,16 +995,32 @@ static void __init mx6q_amherst_reserve(void)
 	phys_addr_t phys;
 
 	if (imx6q_gpu_pdata.reserved_mem_size) {
-		phys = memblock_alloc_base(imx6q_gpu_pdata.reserved_mem_size,
-					   SZ_4K, SZ_512M);
+		if (cpu_is_mx6q())
+		{
+			phys = memblock_alloc_base(imx6q_gpu_pdata.reserved_mem_size,
+							   SZ_4K, SZ_1G);
+		}
+		else if (cpu_is_mx6dl())
+		{
+			phys = memblock_alloc_base(imx6q_gpu_pdata.reserved_mem_size,
+							   SZ_4K, SZ_512M);
+		}
 		memblock_remove(phys, imx6q_gpu_pdata.reserved_mem_size);
 		imx6q_gpu_pdata.reserved_mem_base = phys;
 	}
 #endif
 
 	if (vout_mem.res_msize) {
-		phys = memblock_alloc_base(vout_mem.res_msize,
-					   SZ_4K, SZ_512M);
+		if (cpu_is_mx6q())
+		{
+			phys = memblock_alloc_base(vout_mem.res_msize,
+						   SZ_4K, SZ_1G);
+		}
+		else if (cpu_is_mx6dl())
+		{
+			phys = memblock_alloc_base(vout_mem.res_msize,
+						   SZ_4K, SZ_512M);
+		}
 		memblock_remove(phys, vout_mem.res_msize);
 		vout_mem.res_mbase = phys;
 	}
