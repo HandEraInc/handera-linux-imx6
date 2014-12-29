@@ -30,6 +30,7 @@ struct esdhc_platform_data {
 	unsigned int wp_gpio;
 	unsigned int cd_gpio;
 	enum cd_types cd_type;
+	unsigned int cd_inverted;
 	unsigned int always_present;
 	unsigned int support_18v;
 	unsigned int support_8bit;

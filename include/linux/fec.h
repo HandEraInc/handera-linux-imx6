@@ -22,6 +22,8 @@ struct fec_platform_data {
 	phy_interface_t phy;
 	unsigned char mac[ETH_ALEN];
 	int gpio_irq;
+	unsigned int gpio_reset;
+	unsigned int phy_reset_usec;
 };
 
 #endif

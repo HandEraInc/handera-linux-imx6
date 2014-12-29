@@ -222,13 +222,24 @@ static u32 esdhc_readl_le(struct sdhci_host *host, int reg)
 		if (boarddata && boarddata->always_present)
 			val |= SDHCI_CARD_PRESENT;
 		else if	(imx_data->flags & ESDHC_FLAG_GPIO_FOR_CD_WP) {
-			if (boarddata && gpio_is_valid(boarddata->cd_gpio)
-					&& gpio_get_value(boarddata->cd_gpio))
-				/* no card, if a valid gpio says so */
+			if (boarddata && gpio_is_valid(boarddata->cd_gpio)) {
+			 	if (gpio_get_value(boarddata->cd_gpio)) {
+					/* CD input is high -- normally means card not present */
+					if (boarddata->cd_inverted)
+						val |= SDHCI_CARD_PRESENT;
+					else
+						val &= ~SDHCI_CARD_PRESENT;
+				} else {
+					/* CD input is low -- normally means card present */
+					if (boarddata->cd_inverted)
+						val &= ~SDHCI_CARD_PRESENT;
+					else
+						val |= SDHCI_CARD_PRESENT;
+				}
+			} else {
+				/* invalid boarddata, assume no card is present */
 				val &= ~SDHCI_CARD_PRESENT;
-			else
-				/* in all other cases assume card is present */
-				val |= SDHCI_CARD_PRESENT;
+			}
 		}
 	}
 
