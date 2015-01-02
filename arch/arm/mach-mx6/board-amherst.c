@@ -248,6 +248,7 @@ static const struct spi_imx_master amherst_spi_data __initconst = {
 };
 
 #if defined(CONFIG_MTD_M25P80) || defined(CONFIG_MTD_M25P80_MODULE)
+/* DF remove warning
 static struct mtd_partition amherst_spi_nor_partitions[] = {
 	{
 	 .name = "bootloader",
@@ -260,6 +261,7 @@ static struct mtd_partition amherst_spi_nor_partitions[] = {
 	 .size = MTDPART_SIZ_FULL,
 	},
 };
+*/
 
 static struct flash_platform_data amherst__spi_flash_data = {
 	.name = "m25p80",
@@ -622,6 +624,7 @@ static struct imx_ipuv3_platform_data ipu_data[] = {
 	},
 };
 
+#if 0 // DF - remove warning
 static struct fsl_mxc_capture_platform_data capture_data[] = {
 	{
 		.csi = 0,
@@ -635,6 +638,7 @@ static struct fsl_mxc_capture_platform_data capture_data[] = {
 		.is_mipi = 1,
 	},
 };
+#endif
 
 struct imx_vout_mem {
 	resource_size_t res_mbase;
@@ -771,7 +775,7 @@ static void __init fixup_mxc_board(struct machine_desc *desc, struct tag *tags,
 				   char **cmdline, struct meminfo *mi)
 {
 }
-
+#if 0 // DF - remove warning
 static struct mipi_csi2_platform_data mipi_csi2_pdata = {
 	.ipu_id	 = 0,
 	.csi_id = 1,
@@ -780,6 +784,7 @@ static struct mipi_csi2_platform_data mipi_csi2_pdata = {
 	.dphy_clk = "mipi_pllref_clk",
 	.pixel_clk = "emi_clk",
 };
+#endif
 
 static int __init caam_setup(char *__unused)
 {
@@ -788,6 +793,7 @@ static int __init caam_setup(char *__unused)
 }
 early_param("caam", caam_setup);
 
+#if 0 // DF - remove warning
 #define SNVS_LPCR 0x38
 static void mx6_snvs_poweroff(void)
 {
@@ -798,12 +804,33 @@ static void mx6_snvs_poweroff(void)
 	/*set TOP and DP_EN bit*/
 	writel(value | 0x60, mx6_snvs_base + SNVS_LPCR);
 }
+#endif
 
 static const struct imx_pcie_platform_data amherst_pcie_data __initconst = {
 	.pcie_rst	= AMHERST_PCIE_RSTF,
 	.pcie_wake_up	= AMHERST_PCIE_WAKEF,
 	.pcie_dis	= AMHERST_PCIE_DISF,
 };
+
+#ifdef CONFIG_ANDROID_RAM_CONSOLE
+static struct resource ram_console_resource = {
+	.name = "android ram console",
+	.flags = IORESOURCE_MEM,
+};
+
+static struct platform_device android_ram_console = {
+	.name = "ram_console",
+	.num_resources = 1,
+	.resource = &ram_console_resource,
+};
+
+static int __init imx6x_add_ram_console(void)
+{
+	return platform_device_register(&android_ram_console);
+}
+#else
+#define imx6x_add_ram_console() do {} while (0)
+#endif
 
 /*!
  * Board specific initialization.
@@ -848,6 +875,7 @@ static void __init mx6_amherst_board_init(void)
 
 	/* UARTs */
 	amherst_init_uart();
+	imx6x_add_ram_console();
 
 	/* IPU and Displays */
 	/*
@@ -876,9 +904,10 @@ static void __init mx6_amherst_board_init(void)
 					     DMA_MEMORY_EXCLUSIVE));
 	}
 
-	imx6q_add_v4l2_capture(0, &capture_data[0]);
-	imx6q_add_v4l2_capture(1, &capture_data[1]);
-	imx6q_add_mipi_csi2(&mipi_csi2_pdata);
+	// Trevor: this seemed to get rid of the "v4l2 capture" messages
+	//imx6q_add_v4l2_capture(0, &capture_data[0]);
+	//imx6q_add_v4l2_capture(1, &capture_data[1]);
+	//imx6q_add_mipi_csi2(&mipi_csi2_pdata);
 	imx6q_add_imx_snvs_rtc();
 
 	/* Crypto engine */
@@ -991,16 +1020,24 @@ static struct sys_timer mx6_amherst_timer = {
 
 static void __init mx6q_amherst_reserve(void)
 {
-#if defined(CONFIG_MXC_GPU_VIV) || defined(CONFIG_MXC_GPU_VIV_MODULE)
 	phys_addr_t phys;
 
+#ifdef CONFIG_ANDROID_RAM_CONSOLE
+	phys = memblock_alloc_base(SZ_1M, SZ_4K, SZ_1G);
+	memblock_remove(phys, SZ_1M);
+	memblock_free(phys, SZ_1M);
+	ram_console_resource.start = phys;
+	ram_console_resource.end   = phys + SZ_1M - 1;
+#endif
+
+#if defined(CONFIG_MXC_GPU_VIV) || defined(CONFIG_MXC_GPU_VIV_MODULE)
 	if (imx6q_gpu_pdata.reserved_mem_size) {
-		if (cpu_is_mx6q())
+		if (0) /* TODO determine mem size here somehow */
 		{
 			phys = memblock_alloc_base(imx6q_gpu_pdata.reserved_mem_size,
 							   SZ_4K, SZ_1G);
 		}
-		else if (cpu_is_mx6dl())
+		else
 		{
 			phys = memblock_alloc_base(imx6q_gpu_pdata.reserved_mem_size,
 							   SZ_4K, SZ_512M);
@@ -1011,12 +1048,12 @@ static void __init mx6q_amherst_reserve(void)
 #endif
 
 	if (vout_mem.res_msize) {
-		if (cpu_is_mx6q())
+		if (0) /* TODO determine mem size here somehow */
 		{
 			phys = memblock_alloc_base(vout_mem.res_msize,
 						   SZ_4K, SZ_1G);
 		}
-		else if (cpu_is_mx6dl())
+		else
 		{
 			phys = memblock_alloc_base(vout_mem.res_msize,
 						   SZ_4K, SZ_512M);
