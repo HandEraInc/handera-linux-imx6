@@ -52,6 +52,10 @@ static iomux_v3_cfg_t amherst_quad_pads[] = {
 	MX6Q_PAD_CSI0_DAT8__I2C1_SDA,
 	MX6Q_PAD_CSI0_DAT9__I2C1_SCL,
 
+	/* I2C2 (used for HDMI DDC, but controlled through I2C) */
+	MX6Q_PAD_EIM_D16__I2C2_SDA,
+	MX6Q_PAD_EIM_EB2__I2C2_SCL,
+
 	/* I2C3 */
 	MX6Q_PAD_EIM_D17__I2C3_SCL,
 	MX6Q_PAD_EIM_D18__I2C3_SDA,
