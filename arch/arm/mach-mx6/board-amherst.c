@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 HandEra, Inc. All Rights Reserved.
+ * Copyright (C) 2013-2015 HandEra, Inc. All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -562,6 +562,10 @@ static void hdmi_init(int ipu_id, int disp_id)
 		mxc_iomux_set_gpr_register(0, 0, 1, 1);
 }
 
+/* These pins serve as the DDC (HDMI version of I2C) connection to the HDMI display port.
+   They are configured as generic I2C unless "hdcp" mode is enabled in the HDMI driver.
+   For Amherst, these are always setup as I2C (ie. DDC disabled).
+*/
 static void hdmi_enable_ddc_pin(void)
 {
 	if (cpu_is_mx6q())
@@ -1021,6 +1025,9 @@ static struct sys_timer mx6_amherst_timer = {
 static void __init mx6q_amherst_reserve(void)
 {
 	phys_addr_t phys;
+	phys_addr_t total_mem = 0;
+	struct meminfo *mi = &meminfo;
+	int i;
 
 #ifdef CONFIG_ANDROID_RAM_CONSOLE
 	phys = memblock_alloc_base(SZ_1M, SZ_4K, SZ_1G);
@@ -1030,34 +1037,20 @@ static void __init mx6q_amherst_reserve(void)
 	ram_console_resource.end   = phys + SZ_1M - 1;
 #endif
 
+	for (i=0; i<mi->nr_banks; i++)
+		total_mem += mi->bank[i].size;
 #if defined(CONFIG_MXC_GPU_VIV) || defined(CONFIG_MXC_GPU_VIV_MODULE)
 	if (imx6q_gpu_pdata.reserved_mem_size) {
-		if (0) /* TODO determine mem size here somehow */
-		{
-			phys = memblock_alloc_base(imx6q_gpu_pdata.reserved_mem_size,
-							   SZ_4K, SZ_1G);
-		}
-		else
-		{
-			phys = memblock_alloc_base(imx6q_gpu_pdata.reserved_mem_size,
-							   SZ_4K, SZ_512M);
-		}
+		phys = memblock_alloc_base(imx6q_gpu_pdata.reserved_mem_size,
+						   SZ_4K, total_mem);
 		memblock_remove(phys, imx6q_gpu_pdata.reserved_mem_size);
 		imx6q_gpu_pdata.reserved_mem_base = phys;
 	}
 #endif
 
 	if (vout_mem.res_msize) {
-		if (0) /* TODO determine mem size here somehow */
-		{
-			phys = memblock_alloc_base(vout_mem.res_msize,
-						   SZ_4K, SZ_1G);
-		}
-		else
-		{
-			phys = memblock_alloc_base(vout_mem.res_msize,
-						   SZ_4K, SZ_512M);
-		}
+		phys = memblock_alloc_base(vout_mem.res_msize,
+					   SZ_4K, total_mem);
 		memblock_remove(phys, vout_mem.res_msize);
 		vout_mem.res_mbase = phys;
 	}
