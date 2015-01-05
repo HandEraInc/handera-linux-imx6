@@ -750,6 +750,14 @@ static void __init imx6q_add_device_gpio_leds(void)
 static void __init imx6q_add_device_gpio_leds(void) {}
 #endif
 
+// TODO: will need backlight support, for now just put one in to make Android happy
+static struct platform_pwm_backlight_data mx6_amherst_pwm_backlight_data = {
+	.pwm_id = 1,	// EXT_PWM
+	.max_brightness = 248,
+	.dft_brightness = 128,
+	.pwm_period_ns = 50000,
+};
+
 /* DVFS Setup */
 static struct mxc_dvfs_platform_data amherst_dvfscore_data = {
 	.reg_id = "VDDCORE",
@@ -962,6 +970,8 @@ static void __init mx6_amherst_board_init(void)
 	/* PWM */
 	imx6q_add_mxc_pwm(0);
 	imx6q_add_mxc_pwm(1);
+	// TODO: backlight on EXT_PWM?
+	imx6q_add_mxc_pwm_backlight(1, &mx6_amherst_pwm_backlight_data);
 
 	imx6q_add_otp();
 	imx6q_add_viim();
